@@ -15,85 +15,177 @@ It abstracts the complexity of biometric processing behind simple APIs and SDKs.
 
 ---
 
+## Quick Start
+
+### 1. Prerequisites
+
+- Python 3.12+
+- PostgreSQL 15+ (with pgvector extension)
+- [uv](https://github.com/astral-sh/uv) package manager
+
+### 2. Clone & Setup
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd biometric-identity-sdk
+
+# Create virtual environment
+uv venv
+source .venv/bin/activate  # Linux/Mac
+# .venv\Scripts\activate     # Windows
+
+# Install dependencies
+uv sync
+```
+
+### 3. Database Setup
+
+```bash
+# Create PostgreSQL database
+psql -U postgres -c "CREATE DATABASE biometric_sdk;"
+
+# Enable pgvector extension (required for embedding similarity search)
+psql -U postgres -d biometric_sdk -c "CREATE EXTENSION IF NOT EXISTS vector;"
+
+# The app will auto-create tables on first run
+```
+
+### 4. Configure Environment
+
+```bash
+# Copy environment template
+cp .env.example .env
+
+# Edit .env with your settings
+nano .env
+```
+
+**Required settings in `.env`**:
+```env
+SECRET_KEY=your-secure-random-string
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/biometric_sdk
+```
+
+**Optional settings**:
+```env
+DEBUG=false
+DEFAULT_CONFIDENCE_THRESHOLD=0.85
+RATE_LIMIT_PER_MINUTE=60
+```
+
+### 5. Run
+
+```bash
+# Development mode (with auto-reload)
+uv run fastapi dev main.py
+
+# Production mode
+uv run fastapi run main.py
+```
+
+The API will be available at `http://localhost:8000`
+
+- API Documentation: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
+
+---
+
+## Development
+
+### Project Structure
+
+```
+biometric-identity-sdk/
+├── src/
+│   ├── api/
+│   │   └── v1/
+│   │       └── health.py       # Health check endpoints
+│   ├── core/
+│   │   ├── config.py          # Settings & configuration
+│   │   ├── database.py        # Async SQLAlchemy setup
+│   │   ├── dependencies.py    # FastAPI dependencies
+│   │   └── exceptions.py      # Custom exceptions
+│   ├── models/
+│   │   ├── user.py            # User model
+│   │   ├── embedding.py        # Biometric embedding model
+│   │   └── audit.py            # Audit log model
+│   ├── schemas/
+│   │   ├── common.py           # Shared schemas & enums
+│   │   ├── enroll.py           # Enrollment request/response
+│   │   └── verify.py           # Verification request/response
+│   └── main.py                 # FastAPI application
+├── tests/                      # Test files
+├── docs/                       # Documentation
+├── pyproject.toml              # Project configuration
+├── .env.example                # Environment template
+└── README.md
+```
+
+### Available Scripts
+
+```bash
+# Install dependencies
+uv sync
+
+# Run tests
+uv run pytest
+
+# Run with coverage
+uv run pytest --cov=src --cov-report=html
+
+# Lint code
+uv run ruff check .
+
+# Auto-fix lint issues
+uv run ruff check --fix .
+
+# Format code
+uv run ruff format .
+
+# Type check
+uv run mypy src/
+
+# Run all checks
+uv run ruff check . && uv run mypy src/ && uv run pytest
+```
+
+---
+
+## Database Models
+
+| Model | Purpose | Key Fields |
+|-------|---------|------------|
+| `User` | User identity records | `external_id`, `created_at`, `is_active` |
+| `Embedding` | Biometric embeddings | `user_id`, `biometric_type`, `embedding_vector`, `model_version` |
+| `AuditLog` | Security audit trail | `action`, `success`, `confidence_score`, `ip_address` |
+
+**Security**: Raw biometric data is NEVER stored — only embeddings (feature vectors).
+
+---
+
+## API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | Service info |
+| `/api/v1/health` | GET | Health check |
+| `/api/v1/ready` | GET | Readiness check |
+| `/api/v1/enroll` | POST | Enroll biometric |
+| `/api/v1/verify` | POST | Verify biometric |
+
+---
+
 ## Core Features
 
 | Feature | Description |
 |---------|-------------|
-| Face-based identity verification | Biometric face matching with high accuracy |
-| Document parsing | MRZ/OCR for passports and national IDs |
-| Embedding-based matching | Vector search for fast similarity comparison |
-| Liveness detection | Spoofing prevention with anti-presentation attacks |
-| Configurable thresholds | Customizable confidence scoring |
-| Modular architecture | Swappable ML models and components |
-
----
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      API Layer (FastAPI)                    │
-│                   /enroll    /verify                        │
-└──────────────────────────┬────────────────────────────────┘
-                           │
-        ┌──────────────────┼──────────────────┐
-        ▼                  ▼                  ▼
-┌───────────────┐  ┌───────────────┐  ┌───────────────────────┐
-│  ML Services  │  │   Database    │  │   Encrypted Storage   │
-│  (Embeddings) │  │ (PostgreSQL + │  │   (Documents/Raw)     │
-│               │  │   pgvector)   │  │                       │
-└───────────────┘  └───────────────┘  └───────────────────────┘
-        │                  │                  │
-        └──────────────────┼──────────────────┘
-                           ▼
-              ┌─────────────────────────┐
-              │    Cache (Redis)        │
-              │  Session & Performance  │
-              └─────────────────────────┘
-```
-
-### Components
-
-- **API Layer**: FastAPI service exposing `/enroll` and `/verify` endpoints
-- **ML Services**: Feature extraction using pretrained models
-- **Database**: PostgreSQL + pgvector for storing embeddings and metadata
-- **Cache**: Redis for session and performance optimization
-- **Storage**: Optional encrypted storage for documents/raw inputs
-- **Workers**: Async processing for heavy ML tasks
-
----
-
-## Workflow
-
-### Enroll
-
-1. Capture biometric + optional document
-2. Extract features (embeddings)
-3. Store templates linked to a user identity
-
-### Verify
-
-1. Capture new biometric sample
-2. Extract features
-3. Compare against stored templates
-4. Return confidence score and decision
-
----
-
-## SDK
-
-Client SDKs wrap API calls into simple methods:
-
-```python
-# Python SDK
-from biometric_sdk import BiometricClient
-
-client = BiometricClient(api_key="your-key")
-client.enroll(user_id="user123", biometric_data=image_bytes)
-client.verify(biometric_data=image_bytes)
-```
-
-**Supported languages**: Python, Kotlin, JavaScript (extendable)
+| Face-based identity verification | Biometric face matching |
+| Document parsing | MRZ/OCR for passports and IDs |
+| Embedding-based matching | Vector search via pgvector |
+| Liveness detection | Anti-spoofing measures |
+| Configurable thresholds | Customizable confidence scores |
+| Modular architecture | Swappable ML models |
 
 ---
 
@@ -101,9 +193,9 @@ client.verify(biometric_data=image_bytes)
 
 - **Never store raw biometric data** — only embeddings
 - **Encrypt** sensitive data at rest and in transit
-- **Authenticate** all requests with JWT/OAuth
-- **Audit log** all identity operations (no PII in logs)
-- **Liveness detection** to prevent spoofing attacks
+- **Authenticate** all requests with JWT/API keys
+- **Audit log** all identity operations (no PII)
+- **Rate limit** sensitive endpoints
 
 ---
 
@@ -118,34 +210,18 @@ client.verify(biometric_data=image_bytes)
 
 ---
 
-## Non-Goals (initially)
+## Documentation
 
-- No full identity governance system
-- No manual identity review workflows
-- No hardware-specific fingerprint drivers (abstracted later)
+- [Phase 1: Foundation](docs/phase-1-foundation.md)
+- [Implementation Plan](IMPLEMENTATION_PLAN.md)
+- [Agent Guidelines](AGENTS.md)
 
 ---
 
 ## Future Improvements
 
-- Multi-modal fusion (face + fingerprint + document scoring)
-- Advanced liveness detection (active challenges)
+- Multi-modal fusion (face + fingerprint + document)
+- Advanced liveness detection
 - On-device inference SDK
-- On-premise deployment mode
+- On-premise deployment
 - Additional regional ID formats
-
----
-
-## Quick Start
-
-```bash
-# Install dependencies
-uv sync
-
-# Run the server
-uv run fastapi dev main.py
-```
-
----
-
-This system provides a **unified, secure, and extensible** way to manage digital identity using biometrics and documents, exposed through simple APIs and SDKs that can be integrated into any application.
