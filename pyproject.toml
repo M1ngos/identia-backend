@@ -12,7 +12,7 @@ dependencies = [
     "python-jose[cryptography]>=3.3",
     "passlib[bcrypt]>=1.7",
     "python-multipart>=0.0.9",
-    "alembic",
+    "alembic>=1.18.4",
 ]
 
 [project.optional-dependencies]
@@ -52,6 +52,7 @@ testpaths = ["tests"]
 
 [dependency-groups]
 dev = [
+    "alembic>=1.18.4",
     "httpx>=0.28.1",
     "mypy>=1.20.0",
     "pytest>=9.0.3",

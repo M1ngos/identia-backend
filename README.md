@@ -48,7 +48,8 @@ psql -U postgres -c "CREATE DATABASE biometric_sdk;"
 # Enable pgvector extension (required for embedding similarity search)
 psql -U postgres -d biometric_sdk -c "CREATE EXTENSION IF NOT EXISTS vector;"
 
-# The app will auto-create tables on first run
+# Run database migrations
+uv run alembic upgrade head
 ```
 
 ### 4. Configure Environment
@@ -91,6 +92,47 @@ The API will be available at `http://localhost:8000`
 
 ---
 
+## Database Migrations
+
+We use [Alembic](https://alembic.sqlalchemy.org/) for database schema migrations.
+
+### Migration Commands
+
+```bash
+# Run pending migrations
+uv run alembic upgrade head
+
+# Create a new migration (after model changes)
+uv run alembic revision --autogenerate -m "Description of changes"
+
+# Create empty migration
+uv run alembic revision -m "Description"
+
+# Show current migration
+uv run alembic current
+
+# Show migration history
+uv run alembic history
+
+# Downgrade one migration
+uv run alembic downgrade -1
+
+# Downgrade to specific revision
+uv run alembic downgrade <revision>
+
+# Upgrade to specific revision
+uv run alembic upgrade <revision>
+```
+
+### Migration Workflow
+
+1. Make changes to SQLAlchemy models in `src/models/`
+2. Generate migration: `uv run alembic revision --autogenerate -m "Add field"`
+3. Review generated migration in `alembic/versions/`
+4. Apply: `uv run alembic upgrade head`
+
+---
+
 ## Development
 
 ### Project Structure
@@ -108,17 +150,22 @@ biometric-identity-sdk/
 │   │   └── exceptions.py      # Custom exceptions
 │   ├── models/
 │   │   ├── user.py            # User model
-│   │   ├── embedding.py        # Biometric embedding model
-│   │   └── audit.py            # Audit log model
+│   │   ├── embedding.py       # Biometric embedding model
+│   │   └── audit.py           # Audit log model
 │   ├── schemas/
-│   │   ├── common.py           # Shared schemas & enums
-│   │   ├── enroll.py           # Enrollment request/response
-│   │   └── verify.py           # Verification request/response
-│   └── main.py                 # FastAPI application
-├── tests/                      # Test files
-├── docs/                       # Documentation
-├── pyproject.toml              # Project configuration
-├── .env.example                # Environment template
+│   │   ├── common.py          # Shared schemas & enums
+│   │   ├── enroll.py          # Enrollment request/response
+│   │   └── verify.py          # Verification request/response
+│   └── main.py                # FastAPI application
+├── alembic/
+│   ├── env.py                 # Alembic configuration
+│   ├── versions/              # Migration files
+│   └── script.py.mako         # Migration template
+├── tests/                     # Test files
+├── docs/                      # Documentation
+├── pyproject.toml             # Project configuration
+├── alembic.ini                # Alembic settings
+├── .env.example               # Environment template
 └── README.md
 ```
 
@@ -148,6 +195,10 @@ uv run mypy src/
 
 # Run all checks
 uv run ruff check . && uv run mypy src/ && uv run pytest
+
+# Database migrations
+uv run alembic upgrade head
+uv run alembic revision --autogenerate -m "Description"
 ```
 
 ---
