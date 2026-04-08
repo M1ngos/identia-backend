@@ -145,4 +145,42 @@ Proceed to **Phase 2: Authentication & Security** for:
 
 ---
 
+## Alembic Integration
+
+Database migrations are managed with [Alembic](https://alembic.sqlalchemy.org/).
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `alembic.ini` | Alembic configuration |
+| `alembic/env.py` | Async SQLAlchemy migration environment |
+| `alembic/script.py.mako` | Migration file template |
+| `alembic/versions/001_initial.py` | Initial migration |
+
+### Usage
+
+```bash
+# Run migrations
+uv run alembic upgrade head
+
+# Create new migration
+uv run alembic revision --autogenerate -m "Add new field"
+
+# Check current revision
+uv run alembic current
+
+# Show history
+uv run alembic history
+```
+
+### Model Changes Workflow
+
+1. Modify SQLAlchemy models in `src/models/`
+2. Generate migration: `uv run alembic revision --autogenerate -m "Description"`
+3. Review migration in `alembic/versions/`
+4. Apply: `uv run alembic upgrade head`
+
+---
+
 *This document was auto-generated as part of Phase 1 completion.*
