@@ -13,6 +13,7 @@ dependencies = [
     "passlib[bcrypt]>=1.7",
     "python-multipart>=0.0.9",
     "alembic>=1.18.4",
+    "bcrypt<5.0",
 ]
 
 [project.optional-dependencies]
@@ -48,6 +49,7 @@ disallow_untyped_defs = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 
 [dependency-groups]

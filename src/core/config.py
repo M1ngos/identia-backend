@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,7 +18,7 @@ class Settings(BaseSettings):
 
     API_V1_PREFIX: str = "/api/v1"
 
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/biometric_sdk"
+    DATABASE_URL: str = "postgresql+asyncpg://dev:dev@localhost:5432/biometric"
     DATABASE_POOL_SIZE: int = 20
     DATABASE_MAX_OVERFLOW: int = 10
 
@@ -29,12 +30,25 @@ class Settings(BaseSettings):
     MIN_CONFIDENCE_THRESHOLD: float = 0.5
     MAX_CONFIDENCE_THRESHOLD: float = 0.99
 
+    API_KEY_PREFIX: str = "bsk_live_"
+    ENROLL_RATE_LIMIT_PER_MINUTE: int = 10
+    MAX_REQUEST_BODY_BYTES: int = 10_485_760  # 10 MB
+
     RATE_LIMIT_PER_MINUTE: int = 60
 
     CORS_ORIGINS: list[str] = ["*"]
+    CORS_ALLOW_CREDENTIALS: bool = False
+    CORS_ALLOW_METHODS: list[str] = ["GET", "POST", "DELETE", "OPTIONS"]
+    CORS_ALLOW_HEADERS: list[str] = ["Authorization", "Content-Type", "X-API-Key"]
 
     EMBEDDING_MODEL_NAME: str = "face Recognition"
     EMBEDDING_DIMENSION: int = 512
+
+    @model_validator(mode="after")
+    def validate_cors(self) -> "Settings":
+        if "*" in self.CORS_ORIGINS:
+            self.CORS_ALLOW_CREDENTIALS = False
+        return self
 
 
 @lru_cache

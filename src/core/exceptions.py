@@ -72,8 +72,17 @@ class AuthenticationError(BiometricSDKError):
         )
 
 
+class InvalidAPIKeyError(BiometricSDKError):
+    def __init__(self, reason: str = "Invalid or revoked API key") -> None:
+        super().__init__(
+            message=reason,
+            code="INVALID_API_KEY",
+        )
+
+
 class RateLimitExceededError(BiometricSDKError):
     def __init__(self, retry_after: int = 60) -> None:
+        self.retry_after = retry_after
         super().__init__(
             message=f"Rate limit exceeded. Retry after {retry_after} seconds",
             code="RATE_LIMIT_EXCEEDED",
@@ -81,6 +90,13 @@ class RateLimitExceededError(BiometricSDKError):
 
 
 def get_http_exception(exc: BiometricSDKError) -> HTTPException:
+    if isinstance(exc, RateLimitExceededError):
+        return HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={"code": "RATE_LIMIT_EXCEEDED", "message": exc.message},
+            headers={"Retry-After": str(exc.retry_after)},
+        )
+
     exception_map: dict[type[BiometricSDKError], tuple[int, str]] = {
         UserNotFoundError: (status.HTTP_404_NOT_FOUND, "USER_NOT_FOUND"),
         UserAlreadyExistsError: (status.HTTP_409_CONFLICT, "USER_ALREADY_EXISTS"),
@@ -90,7 +106,7 @@ def get_http_exception(exc: BiometricSDKError) -> HTTPException:
         LivenessCheckFailedError: (status.HTTP_406_NOT_ACCEPTABLE, "LIVENESS_CHECK_FAILED"),
         InvalidImageError: (status.HTTP_400_BAD_REQUEST, "INVALID_IMAGE"),
         AuthenticationError: (status.HTTP_401_UNAUTHORIZED, "AUTHENTICATION_ERROR"),
-        RateLimitExceededError: (status.HTTP_429_TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED"),
+        InvalidAPIKeyError: (status.HTTP_401_UNAUTHORIZED, "INVALID_API_KEY"),
     }
 
     for exc_type, (status_code, error_code) in exception_map.items():

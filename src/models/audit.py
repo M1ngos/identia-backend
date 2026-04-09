@@ -39,7 +39,7 @@ class AuditLog(Base):
         Numeric(5, 4),
         nullable=True,
     )
-    extra_data: Mapped[dict | None] = mapped_column(
+    extra_data: Mapped[dict[str, object] | None] = mapped_column(
         JSONB,
         nullable=True,
     )

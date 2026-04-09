@@ -4,8 +4,13 @@ from contextlib import asynccontextmanager, suppress
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.middleware.base import RequestResponseEndpoint
+from starlette.responses import Response as StarletteResponse
 
+from src.api.v1.auth import router as auth_router
+from src.api.v1.enroll import router as enroll_router
 from src.api.v1.health import router as health_router
+from src.api.v1.verify import router as verify_router
 from src.core.config import settings
 from src.core.exceptions import BiometricSDKError, get_http_exception
 
@@ -43,9 +48,9 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
+    allow_methods=settings.CORS_ALLOW_METHODS,
+    allow_headers=settings.CORS_ALLOW_HEADERS,
 )
 
 
@@ -77,6 +82,28 @@ async def general_exception_handler(
 
 
 app.include_router(health_router, prefix=settings.API_V1_PREFIX)
+app.include_router(auth_router, prefix=settings.API_V1_PREFIX)
+app.include_router(enroll_router, prefix=settings.API_V1_PREFIX)
+app.include_router(verify_router, prefix=settings.API_V1_PREFIX)
+
+
+@app.middleware("http")
+async def limit_body_size(
+    request: Request, call_next: RequestResponseEndpoint
+) -> StarletteResponse:
+    content_length = request.headers.get("content-length")
+    if content_length and int(content_length) > settings.MAX_REQUEST_BODY_BYTES:
+        return JSONResponse(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            content={
+                "code": "REQUEST_TOO_LARGE",
+                "message": (
+                    f"Request body exceeds maximum allowed size of "
+                    f"{settings.MAX_REQUEST_BODY_BYTES} bytes"
+                ),
+            },
+        )
+    return await call_next(request)
 
 
 @app.get("/", tags=["Root"])

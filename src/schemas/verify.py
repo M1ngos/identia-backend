@@ -1,4 +1,5 @@
 import base64
+from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -37,9 +38,13 @@ class VerifyRequest(BaseModel):
     @classmethod
     def validate_biometric_data(cls, v: str) -> str:
         try:
-            base64.b64decode(v)
+            decoded = base64.b64decode(v, validate=True)
         except Exception as e:
             raise ValueError(f"Invalid base64 encoding: {e}") from e
+        if len(decoded) < 100:
+            raise ValueError("Biometric data too small to be a valid image")
+        if len(decoded) > 5 * 1024 * 1024:
+            raise ValueError("Biometric data exceeds maximum size of 5 MB")
         return v
 
 
@@ -72,7 +77,7 @@ class VerifyResponse(BaseModel):
 class BatchVerifyRequest(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
-    user_ids: list[str] = Field(
+    user_ids: list[Annotated[str, Field(min_length=1, max_length=255)]] = Field(
         ...,
         min_length=1,
         max_length=100,
@@ -97,9 +102,13 @@ class BatchVerifyRequest(BaseModel):
     @classmethod
     def validate_batch_biometric_data(cls, v: str) -> str:
         try:
-            base64.b64decode(v)
+            decoded = base64.b64decode(v, validate=True)
         except Exception as e:
             raise ValueError(f"Invalid base64 encoding: {e}") from e
+        if len(decoded) < 100:
+            raise ValueError("Biometric data too small to be a valid image")
+        if len(decoded) > 5 * 1024 * 1024:
+            raise ValueError("Biometric data exceeds maximum size of 5 MB")
         return v
 
 
